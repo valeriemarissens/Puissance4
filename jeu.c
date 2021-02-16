@@ -11,14 +11,18 @@
 #include <time.h>
 
 // Paramètres du jeu
-#define LARGEUR_MAX 9 		// nb max de fils pour un noeud (= nb max de coups possibles)
+#define LARGEUR_MAX 42 		// nb max de fils pour un noeud (= nb max de coups possibles)
 
 #define TEMPS 5		// temps de calcul pour un coup avec MCTS (en secondes)
+
+#define LIGNES 6
+#define COLONNES 7
 
 // macros
 #define AUTRE_JOUEUR(i) (1-(i))
 #define min(a, b)       ((a) < (b) ? (a) : (b))
 #define max(a, b)       ((a) < (b) ? (b) : (a))
+
 
 // Critères de fin de partie
 typedef enum {NON, MATCHNUL, ORDI_GAGNE, HUMAIN_GAGNE } FinDePartie;
@@ -27,21 +31,14 @@ typedef enum {NON, MATCHNUL, ORDI_GAGNE, HUMAIN_GAGNE } FinDePartie;
 typedef struct EtatSt {
 
 	int joueur; // à qui de jouer ? 
-
-	// TODO: à compléter par la définition de l'état du jeu
-
-	/* par exemple, pour morpion: */
-	char plateau[3][3];	
+	char plateau[LIGNES][COLONNES];	
 
 } Etat;
 
 // Definition du type Coup
 typedef struct {
-	// TODO: à compléter par la définition d'un coup 
-
-	/* par exemple, pour morpion: */
-	int ligne;
 	int colonne;
+	int ligne;
 
 } Coup;
 
@@ -56,8 +53,8 @@ Etat * copieEtat( Etat * src ) {
 	
 	/* par exemple : */
 	int i,j;	
-	for (i=0; i< 3; i++)
-		for ( j=0; j<3; j++)
+	for (i = 0; i < LIGNES; i++)
+		for ( j = 0; j <COLONNES; j++)
 			etat->plateau[i][j] = src->plateau[i][j];
 	
 
@@ -73,8 +70,8 @@ Etat * etat_initial( void ) {
 	
 	/* par exemple : */
 	int i,j;	
-	for (i=0; i< 3; i++)
-		for ( j=0; j<3; j++)
+	for (i=0; i < LIGNES; i++)
+		for ( j=0; j < COLONNES; j++)
 			etat->plateau[i][j] = ' ';
 	
 	return etat;
@@ -88,18 +85,18 @@ void afficheJeu(Etat * etat) {
 	/* par exemple : */
 	int i,j;
 	printf("   |");
-	for ( j = 0; j < 3; j++) 
+	for ( j = 0; j < COLONNES; j++) 
 		printf(" %d |", j);
 	printf("\n");
-	printf("----------------");
+	printf("--------------------------------");
 	printf("\n");
 	
-	for(i=0; i < 3; i++) {
+	for(i=0; i < LIGNES; i++) {
 		printf(" %d |", i);
-		for ( j = 0; j < 3; j++) 
+		for ( j = 0; j < COLONNES; j++) 
 			printf(" %c |", etat->plateau[i][j]);
 		printf("\n");
-		printf("----------------");
+		printf("--------------------------------");
 		printf("\n");
 	}
 }
@@ -165,8 +162,8 @@ Coup ** coups_possibles( Etat * etat ) {
 	
 	/* par exemple */
 	int i,j;
-	for(i=0; i < 3; i++) {
-		for (j=0; j < 3; j++) {
+	for(i=0; i < LIGNES; i++) {
+		for (j=0; j < COLONNES; j++) {
 			if ( etat->plateau[i][j] == ' ' ) {
 				coups[k] = nouveauCoup(i,j); 
 				k++;
@@ -254,50 +251,47 @@ void freeNoeud ( Noeud * noeud) {
 // Test si l'état est un état terminal 
 // et retourne NON, MATCHNUL, ORDI_GAGNE ou HUMAIN_GAGNE
 FinDePartie testFin( Etat * etat ) {
-
-	// TODO...
-	
-	/* par exemple	*/
 	
 	// tester si un joueur a gagné
 	int i,j,k,n = 0;
-	for ( i=0;i < 3; i++) {
-		for(j=0; j < 3; j++) {
+	int diagonales = min(LIGNES, COLONNES);
+	for ( i=0;i < LIGNES; i++) {
+		for(j=0; j < COLONNES; j++) {
 			if ( etat->plateau[i][j] != ' ') {
 				n++;	// nb coups joués
 			
 				// lignes
 				k=0;
-				while ( k < 3 && i+k < 3 && etat->plateau[i+k][j] == etat->plateau[i][j] ) 
+				while ( k < LIGNES && i+k < LIGNES && etat->plateau[i+k][j] == etat->plateau[i][j] ) 
 					k++;
-				if ( k == 3 ) 
+				if ( k == 4 ) 
 					return etat->plateau[i][j] == 'O'? ORDI_GAGNE : HUMAIN_GAGNE;
 
 				// colonnes
 				k=0;
-				while ( k < 3 && j+k < 3 && etat->plateau[i][j+k] == etat->plateau[i][j] ) 
+				while ( k < COLONNES && j+k < COLONNES && etat->plateau[i][j+k] == etat->plateau[i][j] ) 
 					k++;
-				if ( k == 3 ) 
+				if ( k == 4 ) 
 					return etat->plateau[i][j] == 'O'? ORDI_GAGNE : HUMAIN_GAGNE;
 
 				// diagonales
 				k=0;
-				while ( k < 3 && i+k < 3 && j+k < 3 && etat->plateau[i+k][j+k] == etat->plateau[i][j] ) 
+				while ( k < diagonales && i+k < diagonales && j+k < diagonales && etat->plateau[i+k][j+k] == etat->plateau[i][j] ) 
 					k++;
-				if ( k == 3 ) 
+				if ( k == 4 ) 
 					return etat->plateau[i][j] == 'O'? ORDI_GAGNE : HUMAIN_GAGNE;
 
 				k=0;
-				while ( k < 3 && i+k < 3 && j-k >= 0 && etat->plateau[i+k][j-k] == etat->plateau[i][j] ) 
+				while ( k < diagonales && i+k < diagonales && j-k >= 0 && etat->plateau[i+k][j-k] == etat->plateau[i][j] ) 
 					k++;
-				if ( k == 3 ) 
+				if ( k == 4 ) 
 					return etat->plateau[i][j] == 'O'? ORDI_GAGNE : HUMAIN_GAGNE;		
 			}
 		}
 	}
 
 	// et sinon tester le match nul	
-	if ( n == 3*3 ) 
+	if ( n == LIGNES * COLONNES ) 
 		return MATCHNUL;
 		
 	return NON;
