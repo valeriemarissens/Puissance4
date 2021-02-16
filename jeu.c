@@ -29,17 +29,14 @@ typedef enum {NON, MATCHNUL, ORDI_GAGNE, HUMAIN_GAGNE } FinDePartie;
 
 // Definition du type Etat (état/position du jeu)
 typedef struct EtatSt {
-
 	int joueur; // à qui de jouer ? 
 	char plateau[LIGNES][COLONNES];	
-
 } Etat;
 
 // Definition du type Coup
 typedef struct {
 	int colonne;
 	int ligne;
-
 } Coup;
 
 // Copier un état 
@@ -102,33 +99,28 @@ void afficheJeu(Etat * etat) {
 }
 
 
-// Nouveau coup 
-// TODO: adapter la liste de paramètres au jeu
-Coup * nouveauCoup( int i, int j ) {
+// Nouveau coup
+Coup * nouveauCoup( Etat * etat, int j ) {
 	Coup * coup = (Coup *)malloc(sizeof(Coup));
 	
-	// TODO: à compléter avec la création d'un nouveau coup
-	
-	/* par exemple : */
-	coup->ligne = i;
 	coup->colonne = j;
+	int i;
+	for (i = 0; i < LIGNES; i++){
+		if (etat->plateau[i][j] == ' ')
+			coup->ligne = i;
+	}
 	
 	return coup;
 }
 
 // Demander à l'humain quel coup jouer 
-Coup * demanderCoup () {
+Coup * demanderCoup (Etat * etat) {
 
-	// TODO...
-
-	/* par exemple : */
-	int i,j;
-	printf("\n quelle ligne ? ") ;
-	scanf("%d",&i); 
+	int j;
 	printf(" quelle colonne ? ") ;
 	scanf("%d",&j); 
 	
-	return nouveauCoup(i,j);
+	return nouveauCoup(etat, j);
 }
 
 // Modifier l'état en jouant un coup 
@@ -165,7 +157,7 @@ Coup ** coups_possibles( Etat * etat ) {
 	for(i=0; i < LIGNES; i++) {
 		for (j=0; j < COLONNES; j++) {
 			if ( etat->plateau[i][j] == ' ' ) {
-				coups[k] = nouveauCoup(i,j); 
+				coups[k] = nouveauCoup(etat, j); 
 				k++;
 			}
 		}
@@ -377,7 +369,7 @@ int main(void) {
 			// tour de l'humain
 			
 			do {
-				coup = demanderCoup();
+				coup = demanderCoup(etat);
 			} while ( !jouerCoup(etat, coup) );
 									
 		}
