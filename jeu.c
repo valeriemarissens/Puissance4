@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <SDL2/SDL.h>
 
 // Paramètres du jeu
 #define LARGEUR_MAX 42 		// nb max de fils pour un noeud (= nb max de coups possibles)
@@ -30,7 +31,7 @@ typedef enum {NON, MATCHNUL, ORDI_GAGNE, HUMAIN_GAGNE } FinDePartie;
 // Definition du type Etat (état/position du jeu)
 typedef struct EtatSt {
 	int joueur; // à qui de jouer ? 
-	char plateau[LIGNES][COLONNES];	
+	int plateau[LIGNES][COLONNES];	//-1 case vide, 0 pion humain, 1 pion ordinateur	
 } Etat;
 
 // Definition du type Coup
@@ -45,10 +46,6 @@ Etat * copieEtat( Etat * src ) {
 
 	etat->joueur = src->joueur;
 	
-		
-	// TODO: à compléter avec la copie de l'état src dans etat
-	
-	/* par exemple : */
 	int i,j;	
 	for (i = 0; i < LIGNES; i++)
 		for ( j = 0; j <COLONNES; j++)
@@ -63,23 +60,124 @@ Etat * copieEtat( Etat * src ) {
 Etat * etat_initial( void ) {
 	Etat * etat = (Etat *)malloc(sizeof(Etat));
 	
-	// TODO: à compléter avec la création de l'état initial
-	
-	/* par exemple : */
 	int i,j;	
 	for (i=0; i < LIGNES; i++)
 		for ( j=0; j < COLONNES; j++)
-			etat->plateau[i][j] = ' ';
+			etat->plateau[i][j] = -1;
 	
 	return etat;
 }
 
+void draw_ligne(SDL_Renderer* pRenderer,int x, int y, int w){
+	SDL_Rect rect;
+	rect.x = x;
+	rect.y = y;
+	rect.w = w;
+	rect.h = 1;
+	
+	SDL_RenderFillRect(pRenderer,&rect);
+}
 
-void afficheJeu(Etat * etat) {
+void draw_circle(SDL_Renderer* pRenderer, int cx, int cy, int r, int v, int b, int rayon){
+	int d = 3 - (2*rayon);
+	int x = 0;
+	int y = rayon;
+	
+	SDL_SetRenderDrawColor(pRenderer,r,v,b,255);
+	
+	while(y >= x){
+		draw_ligne(pRenderer,cx-x,cy-y,2*x+1);
+		draw_ligne(pRenderer,cx-x,cy+y,2*x+1);
+		draw_ligne(pRenderer,cx-y,cy-x,2*y+1);
+		draw_ligne(pRenderer,cx-y,cy+x,2*y+1);
+		
+		if(d < 0)	d = d + (4*x)+6;
+		else{
+			d = d + 4 * (x-y) + 10;
+			y--;
+		}
+		x++;
+	}
+}
 
-	// TODO: à compléter
+void jeton(SDL_Renderer* pRenderer, int x, int y, int r, int v, int b){
+	
+	draw_circle(pRenderer,x,y,255,255,255,30);
+	draw_circle(pRenderer,x,y,r,v,b,25);
+}
 
-	/* par exemple : */
+void afficheJeu_sdl(Etat * etat) {
+
+	//Initalisation de la fenêtre graphique
+
+	if(SDL_Init(SDL_INIT_VIDEO) < 0){
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,"[DEBUG] > %s",SDL_GetError());
+		return;
+	}
+	
+	SDL_Window* fenetre = NULL;
+	SDL_Renderer* pRenderer = NULL;
+	
+	if(SDL_CreateWindowAndRenderer(600,600,SDL_WINDOW_SHOWN,&fenetre,&pRenderer) < 0){
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,"[DEBUG] > %s",SDL_GetError());
+		return;
+	}
+	
+	//Affichage Puissance 4
+	
+	//Suppression affichage actuel
+	SDL_SetRenderDrawColor(pRenderer,0,0,0,255);
+	SDL_RenderClear(pRenderer);
+	
+	//Dessin jeu
+	SDL_Rect fond;
+	fond.x = 20;	fond.y = 100;
+	fond.w = 560;	fond.h = 480;
+	
+	SDL_SetRenderDrawColor(pRenderer,27,1,155,255);
+	SDL_RenderFillRect(pRenderer, &fond);
+	
+	int i,j;
+	int x = 60;
+	int y =140;
+	for (i = 0; i < LIGNES; i++){
+		for ( j = 0; j <COLONNES; j++){
+			if(etat->plateau[i][j] == 1)	jeton(pRenderer,x,y,187,11,11);	//Jeton rouge pour l'humain
+			if(etat->plateau[i][j] == 0)	jeton(pRenderer,x,y,218,179,10);	//Jeton jaune pour l'ordinateur
+			if(etat->plateau[i][j] == -1)	jeton(pRenderer,x,y,0,0,0);		//Jeton noir si pas de jeton
+			x = x + 80;
+		}
+		x = 60;
+		y = y + 80;
+	}
+	
+	//Mise à jour fenêtre
+	SDL_RenderPresent(pRenderer);
+	
+	//Fermeture fenêtre si clic sur X
+	
+	SDL_Event events;
+	int isOpen = 1;
+	while(isOpen){
+		while(SDL_PollEvent(&events)){
+			switch(events.type)
+			{
+				case SDL_QUIT:
+					isOpen = 0;
+					break;
+			}
+		}
+	}
+	
+	//Fermeture des éléments de la fenêtre graphique
+	
+	SDL_DestroyRenderer(pRenderer);
+	SDL_DestroyWindow(fenetre);
+	SDL_Quit();
+}
+
+void afficheJeu_terminal(Etat * etat){
+
 	int i,j;
 	printf("   |");
 	for ( j = 0; j < COLONNES; j++) 
@@ -91,13 +189,13 @@ void afficheJeu(Etat * etat) {
 	for(i=0; i < LIGNES; i++) {
 		printf(" %d |", i);
 		for ( j = 0; j < COLONNES; j++) 
-			printf(" %c |", etat->plateau[i][j]);
+			printf(" %d |", etat->plateau[i][j]);
 		printf("\n");
 		printf("--------------------------------");
 		printf("\n");
 	}
-}
 
+}
 
 // Nouveau coup
 Coup * nouveauCoup( Etat * etat, int j ) {
@@ -363,7 +461,7 @@ int main(void) {
 	// boucle de jeu
 	do {
 		printf("\n");
-		afficheJeu(etat);
+		afficheJeu_sdl(etat);
 		
 		if ( etat->joueur == 0 ) {
 			// tour de l'humain
@@ -384,7 +482,7 @@ int main(void) {
 	}	while ( fin == NON ) ;
 
 	printf("\n");
-	afficheJeu(etat);
+	afficheJeu_sdl(etat);
 		
 	if ( fin == ORDI_GAGNE )
 		printf( "** L'ordinateur a gagné **\n");
