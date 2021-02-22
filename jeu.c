@@ -30,8 +30,8 @@ typedef enum {NON, MATCHNUL, ORDI_GAGNE, HUMAIN_GAGNE } FinDePartie;
 
 // Definition du type Etat (état/position du jeu)
 typedef struct EtatSt {
-	int joueur; // à qui de jouer ? 
-	int plateau[LIGNES][COLONNES];	//-1 case vide, 0 pion humain, 1 pion ordinateur	
+	int joueur; // à qui de jouer ? 	0 si humain, 1 pour ordinateur
+	int plateau[LIGNES][COLONNES];	//-1 case vide, 0 jeton humain, 1 jeton ordinateur	
 } Etat;
 
 // Definition du type Coup
@@ -221,22 +221,40 @@ Coup * demanderCoup (Etat * etat) {
 	return nouveauCoup(etat, j);
 }
 
+//Vérifie si dans l'état etat, il y a des jetons en dessous du jeton positionné en i,j
+//Retourne 1 si oui, 0 sinon
+int jetons_dessous(Etat *etat, int i, int j){
+	i = i + 1;
+	while(i < LIGNES){
+		if(etat->plateau[i][j] == -1)	return 0;
+		i = i + 1;
+	}
+	return 1;
+}
+
 // Modifier l'état en jouant un coup 
 // retourne 0 si le coup n'est pas possible
 int jouerCoup( Etat * etat, Coup * coup ) {
 
-	// TODO: à compléter
-	
-	/* par exemple : */
-	if ( etat->plateau[coup->ligne][coup->colonne] != ' ' )
-		return 0;
-	else {
-		etat->plateau[coup->ligne][coup->colonne] = etat->joueur ? 'O' : 'X';
-		
-		// à l'autre joueur de jouer
-		etat->joueur = AUTRE_JOUEUR(etat->joueur); 	
+	//Si le coup est en-dehors de la grille
+	if((coup->ligne >= LIGNES) || (coup->colonne >= COLONNES))	return 0;
+	else{
+		//S'il y a déjà un pion à cette position
+		if ( etat->plateau[coup->ligne][coup->colonne] != -1 )
+			return 0;
+		else {
+			//S'il n'y a pas de jeton en dessous pour le soutenir
+			if(jetons_dessous(etat,coup->ligne,coup->colonne))
+				return 0;
+			else{
+				etat->plateau[coup->ligne][coup->colonne] = etat->joueur ? 1 : 0;
+				
+				// à l'autre joueur de jouer
+				etat->joueur = AUTRE_JOUEUR(etat->joueur); 	
 
-		return 1;
+				return 1;
+			}
+		}
 	}	
 }
 
@@ -248,19 +266,17 @@ Coup ** coups_possibles( Etat * etat ) {
 	
 	int k = 0;
 	
-	// TODO: à compléter
-	
-	/* par exemple */
 	int i,j;
 	for(i=0; i < LIGNES; i++) {
 		for (j=0; j < COLONNES; j++) {
-			if ( etat->plateau[i][j] == ' ' ) {
-				coups[k] = nouveauCoup(etat, j); 
-				k++;
+			if ( etat->plateau[i][j] == -1 ) {		//Si case vide
+				if(jetons_dessous(etat,i,j)){		//S'il y a des jetons en-dessous
+					coups[k] = nouveauCoup(etat, j); 
+					k++;
+				}
 			}
 		}
 	}
-	/* fin de l'exemple */
 	
 	coups[k] = NULL;
 
