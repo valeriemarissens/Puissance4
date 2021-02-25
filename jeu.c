@@ -106,7 +106,7 @@ void jeton(SDL_Renderer* pRenderer, int x, int y, int r, int v, int b){
 	draw_circle(pRenderer,x,y,r,v,b,25);
 }
 
-void afficheJeu_sdl(Etat * etat) {
+void afficheJeu_sdl(SDL_Window* fenetre, SDL_Renderer* pRenderer, Etat * etat) {
 
 	//Initalisation de la fenêtre graphique
 
@@ -114,9 +114,6 @@ void afficheJeu_sdl(Etat * etat) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,"[DEBUG] > %s",SDL_GetError());
 		return;
 	}
-	
-	SDL_Window* fenetre = NULL;
-	SDL_Renderer* pRenderer = NULL;
 	
 	if(SDL_CreateWindowAndRenderer(600,600,SDL_WINDOW_SHOWN,&fenetre,&pRenderer) < 0){
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,"[DEBUG] > %s",SDL_GetError());
@@ -154,7 +151,7 @@ void afficheJeu_sdl(Etat * etat) {
 	//Mise à jour fenêtre
 	SDL_RenderPresent(pRenderer);
 	
-	//Fermeture fenêtre si clic sur X
+	/*//Fermeture fenêtre si clic sur X
 	
 	SDL_Event events;
 	int isOpen = 1;
@@ -168,12 +165,7 @@ void afficheJeu_sdl(Etat * etat) {
 			}
 		}
 	}
-	
-	//Fermeture des éléments de la fenêtre graphique
-	
-	SDL_DestroyRenderer(pRenderer);
-	SDL_DestroyWindow(fenetre);
-	SDL_Quit();
+	*/
 }
 
 void afficheJeu_terminal(Etat * etat){
@@ -404,6 +396,22 @@ FinDePartie testFin( Etat * etat ) {
 }
 
 
+//Retourne le meilleur fils selon le calcul UCT
+Noeud * meilleurFils(Noeud * n){
+	Noeud * best = n->enfants[0];
+	int val_best = best->nb_victoires/best->nb_simus + sqrt(2)*sqrt(log(n->nb_simus)/best->nb_simus);
+	
+	Noeud * current;
+	int val_current;
+	for(int i=0; i < n->nb_enfants; i++){
+		current = n->enfants[i];
+		val_current = current->nb_victoires/current->nb_simus + sqrt(2)*sqrt(log(n->nb_simus)/current->nb_simus);
+		if(val_current > val_best){
+			val_best = val_current;
+			best = current;
+		}
+	}
+}
 
 // Calcule et joue un coup de l'ordinateur avec MCTS-UCT
 // en tempsmax secondes
@@ -430,22 +438,35 @@ void ordijoue_mcts(Etat * etat, int tempsmax) {
 	}
 	
 	
-	meilleur_coup = coups[ rand()%k ]; // choix aléatoire
-	
-	/*  TODO :
-		- supprimer la sélection aléatoire du meilleur coup ci-dessus
-		- implémenter l'algorithme MCTS-UCT pour déterminer le meilleur coup ci-dessous
+	//MCTS-UCT pour déterminer le meilleur coup
 
 	int iter = 0;
-	
+	Noeud * n = racine;
+	Noeud * parent;
 	do {
 	
 	
-	
-		// à compléter par l'algorithme MCTS-UCT... 
-	
-	
-	
+		//On remplit l'arbre 
+		while(testFin(n->etat) == NON){
+			if(n->nb_enfants == 0){
+				coups = coups_possibles(n->etat);
+				k = 0;
+				while(coups[k] != NULL){
+					enfant = ajouterEnfant(n,coups[k]);
+					k++;
+				}
+			}
+			enfant = meilleurFils(n);
+			enfant->parent = n;
+		}
+		//On remonte le résultat jusqu'à la racine
+		parent = n->parent;
+		while(parent != racine){
+			parent->nb_simus = parent->nb_simus + 1;
+			if(testFin(n->etat) == ORDI_GAGNE)	parent->nb_victoires = parent->nb_victoires + 1;
+			parent = parent->parent;
+		}
+		meilleur_coup = meilleurFils(racine)->coup;
 	
 		toc = clock(); 
 		temps = (int)( ((double) (toc - tic)) / CLOCKS_PER_SEC );
@@ -467,6 +488,9 @@ int main(void) {
 	Coup * coup;
 	FinDePartie fin;
 	
+	SDL_Window* fenetre = NULL;
+	SDL_Renderer* pRenderer = NULL;
+	
 	// initialisation
 	Etat * etat = etat_initial(); 
 	
@@ -477,7 +501,7 @@ int main(void) {
 	// boucle de jeu
 	do {
 		printf("\n");
-		afficheJeu_sdl(etat);
+		afficheJeu_sdl(fenetre, pRenderer, etat);
 		
 		if ( etat->joueur == 0 ) {
 			// tour de l'humain
@@ -498,7 +522,13 @@ int main(void) {
 	}	while ( fin == NON ) ;
 
 	printf("\n");
-	afficheJeu_sdl(etat);
+	afficheJeu_sdl(fenetre, pRenderer,etat);
+	
+	//Fermeture des éléments de la fenêtre graphique
+	
+	SDL_DestroyRenderer(pRenderer);
+	SDL_DestroyWindow(fenetre);
+	SDL_Quit();
 		
 	if ( fin == ORDI_GAGNE )
 		printf( "** L'ordinateur a gagné **\n");
