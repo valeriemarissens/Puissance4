@@ -245,13 +245,14 @@ int jouerCoup( Etat * etat, Coup * coup ) {
 		if ( etat->plateau[coup->ligne][coup->colonne] != -1 )
 			return 0;
 		else {
+			// Ceci n'est plus nécessaire car on met le jeton dans la première ligne non occupée
 			/*//S'il n'y a pas de jeton en dessous pour le soutenir
 			if(jetons_dessous(etat,coup->ligne,coup->colonne)){
 				//todo effacer : 
 				printf("jeton dessous\n");
 				return 0;
-			}
-			else{*/
+			}*/
+			// Si la colonne n'est pas définie par le joueur
 			if (coup->colonne == -1) return 0;
 			else{
 				// Si le joueur est humain, alors on met 1 dans le plateau, sinon 0.
