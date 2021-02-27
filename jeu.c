@@ -195,10 +195,11 @@ Coup * nouveauCoup( Etat * etat, int j ) {
 	
 	coup->colonne = j;
 	int i;
-	for (i = 0; i < LIGNES; i++){
-		if (etat->plateau[i][j] == ' ')
+	for (i = 0; i < LIGNES; i++){ //todo : ver si croissant ou décroissant
+		if (etat->plateau[i][j] == -1)
 			coup->ligne = i;
 	}
+	printf("ligne : %d, colonne : %d\n", coup->ligne, coup->colonne);
 	
 	return coup;
 }
@@ -206,10 +207,27 @@ Coup * nouveauCoup( Etat * etat, int j ) {
 // Demander à l'humain quel coup jouer 
 Coup * demanderCoup (Etat * etat) {
 
-	int j;
+	/*int j;
 	printf(" quelle colonne ? ") ;
 	scanf("%d",&j); 
 	
+	return nouveauCoup(etat, j);*/	
+
+	int j, x, y;
+	// 560 est la largeur de l'écran
+	int intervalle = 560 / COLONNES;
+	
+	SDL_Event events;
+	if(SDL_PollEvent(&events)){
+		if (events.type == SDL_MOUSEBUTTONDOWN){
+				// Récupère la position du curseur
+				SDL_GetMouseState(&x, &y);
+
+				// Transforme x en numéro de colonne : partie entière de x / (width/colonnes)
+				j = floor(x / intervalle);
+		}
+	}
+
 	return nouveauCoup(etat, j);
 }
 
@@ -239,6 +257,7 @@ int jouerCoup( Etat * etat, Coup * coup ) {
 			if(jetons_dessous(etat,coup->ligne,coup->colonne))
 				return 0;
 			else{
+				// Si le joueur est humain, alors on met 1 dans le plateau, sinon 0.
 				etat->plateau[coup->ligne][coup->colonne] = etat->joueur ? 1 : 0;
 				
 				// à l'autre joueur de jouer
@@ -355,7 +374,7 @@ FinDePartie testFin( Etat * etat ) {
 	int diagonales = min(LIGNES, COLONNES);
 	for ( i=0;i < LIGNES; i++) {
 		for(j=0; j < COLONNES; j++) {
-			if ( etat->plateau[i][j] != ' ') {
+			if ( etat->plateau[i][j] != -1) {
 				n++;	// nb coups joués
 			
 				// lignes
@@ -363,27 +382,27 @@ FinDePartie testFin( Etat * etat ) {
 				while ( k < LIGNES && i+k < LIGNES && etat->plateau[i+k][j] == etat->plateau[i][j] ) 
 					k++;
 				if ( k == 4 ) 
-					return etat->plateau[i][j] == 'O'? ORDI_GAGNE : HUMAIN_GAGNE;
+					return etat->plateau[i][j] == 0? ORDI_GAGNE : HUMAIN_GAGNE;
 
 				// colonnes
 				k=0;
 				while ( k < COLONNES && j+k < COLONNES && etat->plateau[i][j+k] == etat->plateau[i][j] ) 
 					k++;
 				if ( k == 4 ) 
-					return etat->plateau[i][j] == 'O'? ORDI_GAGNE : HUMAIN_GAGNE;
+					return etat->plateau[i][j] == 0? ORDI_GAGNE : HUMAIN_GAGNE;
 
 				// diagonales
 				k=0;
 				while ( k < diagonales && i+k < diagonales && j+k < diagonales && etat->plateau[i+k][j+k] == etat->plateau[i][j] ) 
 					k++;
 				if ( k == 4 ) 
-					return etat->plateau[i][j] == 'O'? ORDI_GAGNE : HUMAIN_GAGNE;
+					return etat->plateau[i][j] == 0? ORDI_GAGNE : HUMAIN_GAGNE;
 
 				k=0;
 				while ( k < diagonales && i+k < diagonales && j-k >= 0 && etat->plateau[i+k][j-k] == etat->plateau[i][j] ) 
 					k++;
 				if ( k == 4 ) 
-					return etat->plateau[i][j] == 'O'? ORDI_GAGNE : HUMAIN_GAGNE;		
+					return etat->plateau[i][j] == 0? ORDI_GAGNE : HUMAIN_GAGNE;		
 			}
 		}
 	}
@@ -411,6 +430,8 @@ Noeud * meilleurFils(Noeud * n){
 			best = current;
 		}
 	}
+
+	return best;
 }
 
 // Calcule et joue un coup de l'ordinateur avec MCTS-UCT
@@ -483,7 +504,9 @@ void ordijoue_mcts(Etat * etat, int tempsmax) {
 	free (coups);
 }
 
-int main(void) {
+int main(int argc, char* argv[]) {
+
+	printf("hola\n");
 
 	Coup * coup;
 	FinDePartie fin;
@@ -495,8 +518,9 @@ int main(void) {
 	Etat * etat = etat_initial(); 
 	
 	// Choisir qui commence : 
-	printf("Qui commence (0 : humain, 1 : ordinateur) ? ");
-	scanf("%d", &(etat->joueur) );
+	/*printf("Qui commence (0 : humain, 1 : ordinateur) ? ");
+	scanf("%d", &(etat->joueur) );*/
+	etat->joueur = 0;
 	
 	// boucle de jeu
 	do {
