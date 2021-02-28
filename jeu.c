@@ -160,7 +160,7 @@ void afficheJeu_sdl(SDL_Window* fenetre, SDL_Renderer* pRenderer, Etat * etat) {
 			switch(events.type)
 			{
 				case SDL_QUIT:
-					isOpen = 0;
+					SDL_Quit();
 					break;
 			}
 		}
@@ -412,24 +412,132 @@ FinDePartie testFin( Etat * etat ) {
 	return NON;
 }
 
+double calculB(Noeud * noeud){
+	if(noeud->nb_simus == 0)	return DBL_MAX;
+	double moy = (double) noeud->nb_victoires/noeud->nb_simus;
+	if(noeud->parent->joueur == 1){
+		moy = moy * -1;
+	}
+	return moy + sqrt(2)*sqrt(log(noeud->parent->nb_simus)/noeud->nb_simus);
+}
 
-//Retourne le meilleur fils selon le calcul UCT
-Noeud * meilleurFils(Noeud * n){
-	Noeud * best = n->enfants[0];
-	int val_best = best->nb_victoires/best->nb_simus + sqrt(2)*sqrt(log(n->nb_simus)/best->nb_simus);
+
+//Renvoie le prochain noeud selon le principe UTC
+Noeud * UTC(Noeud * racine){
+	Noeud * current = racine;
 	
-	Noeud * current;
-	int val_current;
-	for(int i=0; i < n->nb_enfants; i++){
-		current = n->enfants[i];
-		val_current = current->nb_victoires/current->nb_simus + sqrt(2)*sqrt(log(n->nb_simus)/current->nb_simus);
-		if(val_current > val_best){
-			val_best = val_current;
-			best = current;
+	if((testFin(current->etat) != NON)||(current->nb_enfants != sizeof(coups_possibles(current->etat))/sizeof(Coup *)))	return current;
+	
+	Noeud * next = current->enfants[0];
+	double val = calculB(next);
+	double temp;
+	for(int i = 1; i<current->nb_enfants; i++){
+		temp = calculB(current->enfants[i]);
+		if(val < temp){
+			next = current->enfants[i];
+			val = temp;
 		}
 	}
+	
+	return UTC(next);
+}
 
-	return best;
+Noeud * expansion(Noeud * current){
+
+	if(testFin(current->etat) != NON)	return current;
+	
+	Coup ** coups = coups_possibles(current->etat);
+	
+	int k = 0;
+	int i,j;
+	int exist = 0;
+	while(coups[k] != NULL){
+		for(i=0; i < current->nb_enfants; i++){
+			if(coups[k]->colonne == current->enfants[i]->coup->colonne){
+				exist = 1;
+				break;
+			}
+		}
+		if(exist){
+			free(coups[k]);
+			j = k;
+			while(coups[j] != NULL){
+				coups[j] = coups[j+1];
+				j++;
+			}
+		}
+		else{
+			k++;
+		}
+	}
+	int fils = rand()%k;
+	k = 0;
+	while(coups[k] != NULL){
+		if(k != fils){
+			free(coups[k]);
+		}
+		k++;
+	}
+	
+	return ajouterEnfant(current,coups[fils]);
+}
+
+FinDePartie simulation(Etat * etat){
+	FinDePartie result;
+	Coup ** coups;
+	Coup * next_coup;
+	int k;
+	Etat * test;
+	
+	while((result = testFin(etat)) == NON){
+		coups = coups_possibles(etat);
+		next_coup = NULL;
+		k = 0;
+		while(coups[k] != NULL && next_coup == NULL){
+			test = copieEtat(etat);
+			jouerCoup(test,coups[k]);
+			if(testFin(test) == ORDI_GAGNE){
+				next_coup = coups[k];
+			}
+			k++;
+		}
+		if(next_coup == NULL){
+			next_coup = coups[rand()%k];
+		}
+	}
+	jouerCoup(etat,next_coup);
+	return result;
+}
+
+void propa_result(Noeud * noeud, FinDePartie result){
+	while(noeud != NULL){
+		noeud->nb_simus++;
+		if(result == ORDI_GAGNE){
+			noeud->nb_victoires++;
+			noeud->nb_victoires++;
+		}
+		noeud = noeud->parent;
+	}
+}
+
+Noeud * meilleurFils(Noeud * racine){
+	Noeud * meilleur = racine->enfants[0];
+	int maxSimus;
+	double maxVal, currentVal;
+	
+	if(meilleur->nb_simus == 0)	maxVal = 0;
+	else				maxVal = (double) meilleur->nb_victoires/meilleur->nb_simus;
+	
+	for(int i = 1; i<racine->nb_enfants;i++){
+		if(racine->enfants[i]->nb_simus == 0)	currentVal = 0;
+		else		currentVal = (double) racine->enfants[i]->nb_victoires/racine->enfants[i]->nb_simus;
+		
+		if(maxVal < currentVal){
+			meilleur = racine->enfants[i];
+			maxVal = currentVal;
+		}
+	}
+	return meilleur;
 }
 
 // Calcule et joue un coup de l'ordinateur avec MCTS-UCT
@@ -461,36 +569,23 @@ void ordijoue_mcts(Etat * etat, int tempsmax) {
 
 	int iter = 0;
 	Noeud * n = racine;
-	Noeud * parent;
+	Noeud * current;
+	Etat * new_etat;
 	do {
 	
 	
-		//On remplit l'arbre 
-		while(testFin(n->etat) == NON){
-			if(n->nb_enfants == 0){
-				coups = coups_possibles(n->etat);
-				k = 0;
-				while(coups[k] != NULL){
-					enfant = ajouterEnfant(n,coups[k]);
-					k++;
-				}
-			}
-			enfant = meilleurFils(n);
-			enfant->parent = n;
-		}
-		//On remonte le résultat jusqu'à la racine
-		parent = n->parent;
-		while(parent != racine){
-			parent->nb_simus = parent->nb_simus + 1;
-			if(testFin(n->etat) == ORDI_GAGNE)	parent->nb_victoires = parent->nb_victoires + 1;
-			parent = parent->parent;
-		}
-		meilleur_coup = meilleurFils(racine)->coup;
+		current = UTC(racine);
+		enfant = expansion(current);
+		
+		new_etat = copieEtat(enfant->etat);
+		propa_result(enfant,simulation(new_etat));
 	
 		toc = clock(); 
 		temps = (int)( ((double) (toc - tic)) / CLOCKS_PER_SEC );
 		iter ++;
 	} while ( temps < tempsmax );
+	
+	meilleur_coup = meilleurFils(racine)->coup;
 	
 	/* fin de l'algorithme  */ 
 	
@@ -518,7 +613,6 @@ int main(int argc, char* argv[]) {
 	scanf("%d", &(etat->joueur) );*/
 	etat->joueur = 0;
 	
-	//afficheJeu_sdl(fenetre, pRenderer, etat);
 	// boucle de jeu
 	do {
 		afficheJeu_sdl(fenetre, pRenderer, etat);
@@ -534,7 +628,7 @@ int main(int argc, char* argv[]) {
 		else {
 			// tour de l'Ordinateur
 			
-			//ordijoue_mcts( etat, TEMPS );
+			ordijoue_mcts( etat, TEMPS );
 			//todo : effacer
 			etat->joueur = 0;
 		}
