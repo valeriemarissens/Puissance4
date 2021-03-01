@@ -454,7 +454,7 @@ Noeud * expansion(Noeud * current){
 	while(coups[k] != NULL){
 		exist = 0;
 		for(i=0; i < current->nb_enfants; i++){
-			if(coups[k]->colonne == current->enfants[i]->coup->colonne){
+			if((coups[k]->colonne == current->enfants[i]->coup->colonne) && (coups[k]->ligne == current->enfants[i]->coup->ligne)){
 				exist = 1;
 				break;
 			}
