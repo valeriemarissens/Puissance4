@@ -630,8 +630,6 @@ int main(int argc, char* argv[]) {
 			// tour de l'Ordinateur
 			
 			ordijoue_mcts( etat, TEMPS );
-			//todo : effacer
-			etat->joueur = 0;
 		}
 		
 		fin = testFin( etat );
